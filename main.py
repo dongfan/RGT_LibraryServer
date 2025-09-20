@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException
+from routers.auth import create_access_token, verify_token
+from utils.validation import validate_password_strength
+from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
-from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
 from dotenv import load_dotenv
 import os
+import re
 
 load_dotenv()
 
@@ -15,7 +17,7 @@ app = FastAPI()
 # -----------------------
 class SignupData(BaseModel):
     username: str
-    email: str
+    email: EmailStr  # 이메일 형식 검증을 위해 EmailStr 사용
     password: str
     full_name: str
 
@@ -44,27 +46,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str | None = None
 
-def create_access_token(data: dict):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    print(f"[DEBUG] Access token created for: {data['sub']}, Expires at: {expire}")
-    return encoded_jwt
-
-def verify_token(token: str, credentials_exception):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        print(f"[DEBUG] Token verified for user: {username}")
-        token_data = TokenData(username=username)
-    except JWTError as e:
-        print(f"[ERROR] Token verification failed: {e}")
-        raise credentials_exception
-    return token_data
-
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=401,
@@ -72,6 +53,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     return verify_token(token, credentials_exception)
+
+def validate_password_strength(password: str):
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if not re.search(r"[a-z]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one lowercase letter")
+    if not re.search(r"[0-9]", password):
+        raise HTTPException(status_code=400, detail="Password must contain at least one digit")
 
 # -----------------------
 # 임시 데이터베이스 (메모리, dict 기반)
@@ -85,6 +74,11 @@ books_db = {}
 
 @app.post("/auth/signup")
 def signup(data: SignupData):
+    # 이메일 형식은 Pydantic의 EmailStr이 자동으로 검증합니다.
+
+    # 비밀번호 강도 검증
+    validate_password_strength(data.password)
+
     # 이미 존재하는 username 체크
     for user in users_db.values():
         if user["username"] == data.username:
