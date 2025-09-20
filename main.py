@@ -53,7 +53,7 @@ def login(data: LoginData):
     raise HTTPException(status_code=401, detail="Invalid username or password")
 
 
-@app.post("/books")
+@app.post("/books", tags=["Books"])
 def add_book(data: BookData):
     for book in books_db:
         if book["isbn"] == data.isbn:
@@ -61,16 +61,12 @@ def add_book(data: BookData):
     books_db.append(data.dict())
     return {"message": "Book added successfully", "book": data.title}
 
-@app.get("/users")
-def get_users():
-    return {"users": users_db}
-
-@app.get("/books")
+@app.get("/books", tags=["Books"])
 def get_books():
     return {"books": books_db}
 
 
-@app.delete("/books/{isbn}")
+@app.delete("/books/{isbn}", tags=["Books"])
 def delete_book(isbn: str):
     for book in books_db:
         if book["isbn"] == isbn:
