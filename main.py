@@ -1,5 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from fastapi.security import OAuth2PasswordBearer
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -22,6 +29,49 @@ class BookData(BaseModel):
     isbn: str
     category: str
     total_copies: int
+
+# JWT 설정
+SECRET_KEY = os.getenv("SECRET_KEY", "your_default_secret_key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: str | None = None
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    print(f"[DEBUG] Access token created for: {data['sub']}, Expires at: {expire}")
+    return encoded_jwt
+
+def verify_token(token: str, credentials_exception):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        print(f"[DEBUG] Token verified for user: {username}")
+        token_data = TokenData(username=username)
+    except JWTError as e:
+        print(f"[ERROR] Token verification failed: {e}")
+        raise credentials_exception
+    return token_data
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    return verify_token(token, credentials_exception)
 
 # -----------------------
 # 임시 데이터베이스 (메모리, dict 기반)
@@ -47,12 +97,15 @@ def signup(data: SignupData):
     return {"message": "User registered successfully", "user": data.username}
 
 
-@app.post("/auth/login")
+@app.post("/auth/login", response_model=Token)
 def login(data: LoginData):
-    for user in users_db.values():
-        if user["username"] == data.username and user["password"] == data.password:
-            return {"message": "Login successful"}
-    raise HTTPException(status_code=401, detail="Invalid username or password")
+    user = next((u for u in users_db.values() if u["username"] == data.username and u["password"] == data.password), None)
+    if not user:
+        print(f"[ERROR] Login failed for username: {data.username}")
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    access_token = create_access_token(data={"sub": user["username"]})
+    print(f"[DEBUG] Login successful for username: {data.username}")
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.post("/books", tags=["Books"])
@@ -76,3 +129,8 @@ def delete_book(isbn: str):
         books_db.pop(isbn)
         return {"message": "Book deleted successfully"}
     raise HTTPException(status_code=404, detail="Book not found")
+
+
+@app.get("/protected-route")
+def protected_route(current_user: dict = Depends(get_current_user)):
+    return {"message": f"Hello, {current_user.username}!"}
