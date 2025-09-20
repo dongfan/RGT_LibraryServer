@@ -9,8 +9,8 @@ signup_data = {
     "password": "securepass123",
     "full_name": "John Doe"
 }
-
 response = requests.post(f"{base_url}/auth/signup", json=signup_data)
+print("회원가입 결과:", response.json())
 
 # 로그인 (간단 검증)
 login_data = {
@@ -18,8 +18,7 @@ login_data = {
     "password": "securepass123"
 }
 auth_response = requests.post(f"{base_url}/auth/login", json=login_data)
-token = auth_response.json()["access_token"]
-headers = {"Authorization": f"Bearer {token}"}
+print("로그인 결과:", auth_response.json())
 
 # 도서 등록
 book_data = {
@@ -29,11 +28,14 @@ book_data = {
     "category": "Programming",
     "total_copies": 5
 }
-requests.post(f"{base_url}/books", json=book_data, headers=admin_headers)
+book_response = requests.post(f"{base_url}/books", json=book_data)
+print("도서 등록 결과:", book_response.json())
 
-search_response = requests.get(f"{base_url}/books?category=Programming&available=true")
+# 도서 전체 조회
+search_response = requests.get(f"{base_url}/books")
+print("도서 전체 조회 결과:", search_response.json())
 
-borrow_data = {"book_id": 1, "user_id": 1}
-requests.post(f"{base_url}/loans", json=borrow_data, headers=headers)
-
-loans_response = requests.get(f"{base_url}/users/me/loans", headers=headers)
+# 도서 삭제
+delete_isbn = "978-0123456789"
+delete_response = requests.delete(f"{base_url}/books/{delete_isbn}")
+print("도서 삭제 결과:", delete_response.json())

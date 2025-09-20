@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, HTTPException
 from typing import List
 from models import User
@@ -8,37 +9,34 @@ router = APIRouter()
 # CREATE
 @router.post("/", response_model=User)
 def POST(user: User):
-    if any(u.id == user.id for u in users):
+    if user.id in users:
         raise HTTPException(status_code=400, detail="User ID already exists")
-    users.append(user)
+    users[user.id] = user
     return user
 
 # READ ALL
 @router.get("/", response_model=List[User])
 def GET():
-    return users
+    return list(users.values())
 
 # READ ONE
 @router.get("/{user_id}", response_model=User)
 def GET_BY_ID(user_id: int):
-    for user in users:
-        if user.id == user_id:
-            return user
+    if user_id in users:
+        return users[user_id]
     raise HTTPException(status_code=404, detail="User not found")
 
 # UPDATE
 @router.put("/{user_id}", response_model=User)
 def PUT(user_id: int, updated_user: User):
-    for i, user in enumerate(users):
-        if user.id == user_id:
-            users[i] = updated_user
-            return updated_user
+    if user_id in users:
+        users[user_id] = updated_user
+        return updated_user
     raise HTTPException(status_code=404, detail="User not found")
 
 # DELETE
 @router.delete("/{user_id}", response_model=User)
 def DELETE(user_id: int):
-    for i, user in enumerate(users):
-        if user.id == user_id:
-            return users.pop(i)
+    if user_id in users:
+        return users.pop(user_id)
     raise HTTPException(status_code=404, detail="User not found")

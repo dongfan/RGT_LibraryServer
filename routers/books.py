@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, HTTPException
 from typing import List
 from models import Book
@@ -8,37 +9,34 @@ router = APIRouter()
 # CREATE
 @router.post("/", response_model=Book)
 def POST(book: Book):
-    if any(b.id == book.id for b in books):
-        raise HTTPException(status_code=400, detail="Book ID already exists")
-    books.append(book)
+    if book.isbn in books:
+        raise HTTPException(status_code=400, detail="Book ISBN already exists")
+    books[book.isbn] = book
     return book
 
 # READ ALL
 @router.get("/", response_model=List[Book])
 def GET():
-    return books
+    return list(books.values())
 
 # READ ONE
-@router.get("/{book_id}", response_model=Book)
-def GET_BY_ID(book_id: int):
-    for book in books:
-        if book.id == book_id:
-            return book
+@router.get("/{isbn}", response_model=Book)
+def GET_BY_ISBN(isbn: str):
+    if isbn in books:
+        return books[isbn]
     raise HTTPException(status_code=404, detail="Book not found")
 
 # UPDATE
-@router.put("/{book_id}", response_model=Book)
-def PUT(book_id: int, updated_book: Book):
-    for i, book in enumerate(books):
-        if book.id == book_id:
-            books[i] = updated_book
-            return updated_book
+@router.put("/{isbn}", response_model=Book)
+def PUT(isbn: str, updated_book: Book):
+    if isbn in books:
+        books[isbn] = updated_book
+        return updated_book
     raise HTTPException(status_code=404, detail="Book not found")
 
 # DELETE
-@router.delete("/{book_id}", response_model=Book)
-def DELETE(book_id: int):
-    for i, book in enumerate(books):
-        if book.id == book_id:
-            return books.pop(i)
+@router.delete("/{isbn}", response_model=Book)
+def DELETE(isbn: str):
+    if isbn in books:
+        return books.pop(isbn)
     raise HTTPException(status_code=404, detail="Book not found")
