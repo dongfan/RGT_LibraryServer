@@ -80,3 +80,10 @@ RGT_LibraryServer/
    git push origin feature/새로운기능
    ```
 5. Pull Request를 생성합니다.
+
+## 브랜치 설명
+
+- **main**: 안정적인 버전의 코드가 포함된 기본 브랜치입니다. 배포 가능한 상태의 코드만 병합됩니다.
+- **develop**: 새로운 기능 개발 및 버그 수정을 위한 브랜치입니다. 모든 기능은 이 브랜치에서 개발되고 테스트됩니다.
+- **feature/**: 특정 기능 개발을 위한 브랜치입니다. 각 기능별로 별도의 브랜치를 생성하여 작업합니다. 예: `feature/loan-management`
+- **hotfix/**: 긴급한 버그 수정을 위한 브랜치입니다. 예: `hotfix/fix-loan-bug`
