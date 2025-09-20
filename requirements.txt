@@ -6,3 +6,4 @@ python-jose
 pytest
 httpx
 bcrypt
+python-decouple
